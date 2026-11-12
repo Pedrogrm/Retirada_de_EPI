@@ -188,6 +188,7 @@
     Importar substitui a lista atual.
   </p>
   <div class="cat-actions">
+    <button type="button" class="btn" id="resetBtn">Restaurar lista padrão</button>
     <button type="button" class="btn primary" id="importBtn">Importar planilha</button>
     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" hidden>
     <button type="button" class="btn" id="templateBtn">Baixar modelo</button>
@@ -227,7 +228,9 @@
   function saveCatalog() { try { localStorage.setItem(CATALOG_KEY, JSON.stringify(catalog)); } catch (e) {} }
 
   let records = loadJSON(STORAGE_KEY);
-  let catalog = loadJSON(CATALOG_KEY);
+ let catalog = localStorage.getItem(CATALOG_KEY) === null
+  ? EPIS_PADRAO.map(c => ({ ...c }))
+  : loadJSON(CATALOG_KEY);
   let editingId = null;
 
   /* ---------- Utilidades ---------- */
@@ -527,11 +530,20 @@
       catalog = []; saveCatalog(); renderCatalog(); setMsg('Lista limpa.', 'ok');
     }
   };
+  document.getElementById('resetBtn').onclick = () => {
+  if (confirm('Substituir a lista atual pela lista padrão de EPIs?')) {
+    catalog = EPIS_PADRAO.map(c => ({ ...c }));
+    saveCatalog(); renderCatalog();
+    setMsg('Lista padrão restaurada.', 'ok');
+  }
+};
   catBtn.onclick = () => { setMsg(''); catDlg.showModal(); };
   document.getElementById('closeCat').onclick = () => catDlg.close();
 
   renderCatalog();
   render();
 </script>
+
+<script src="epis_padrao.js"></script> 
 </body>
 </html>
