@@ -217,3 +217,4 @@ const EPIS_PADRAO = [
     kitMsg(`${kit.itens.length} EPI(s) do kit "${kit.nome}" registrados para ${nome}.`, 'ok');
   };
 })();
+

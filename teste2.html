@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planilha de EPIs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Raleway:wght@700;800&display=swap" rel="stylesheet">
+<!-- Leitura de arquivos .xlsx/.xls (o .csv funciona sem esta biblioteca) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root {
+    --green: #1f6fd1;
+    --green-dark: #0f428a;
+    --green-soft: #f3f7fd;
+    --green-banner:  #e4eefa;
+    --text: #1a1f1c;
+    --muted: #5b626b;
+    --border: #d9e2dc;
+    --red: #b3261e;
+    --red-soft: #fdeceb;
+    --amber: #8a5a00;
+    --amber-soft: #fff4d6;
+/* 
+    --blue: #1f6fd1;
+    --blue-dark: #0f428a;
+    --blue-soft: #f3f7fd;
+    --blue-banner: #e4eefa;
+    --text: #1a1d21;
+    --muted: #5b626b;
+    --border: #d9e1ea;
+     */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Lato', system-ui, sans-serif;
+    color: var(--text);
+    background: #fff;
+    min-height: 100vh;
+    border-top: 8px solid var(--green);
+  }
+  .page { max-width: 1400px; margin: 0 auto; padding: 40px 32px 32px; }
+
+  .back { color: var(--green-dark); font-weight: 700; text-decoration: none; display: inline-block; margin-bottom: 18px; }
+  .back:hover { text-decoration: underline; }
+  .eyebrow { width: 60px; height: 5px; background: var(--green); margin-bottom: 14px; }
+  .kicker { color: var(--green); font-weight: 700; font-size: 14px; letter-spacing: .02em; text-transform: uppercase; margin-bottom: 8px; }
+  .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  h1 { font-family: 'Raleway', sans-serif; font-weight: 800; font-size: clamp(26px, 4vw, 38px); }
+
+  .tools { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .search { font: inherit; padding: 10px 14px; border: 2px solid var(--border); border-radius: 10px; min-width: 240px; }
+  .search:focus { outline: none; border-color: var(--green); }
+
+  .btn {
+    font: inherit; font-weight: 700; cursor: pointer;
+    border: 2px solid var(--green); background: #fff; color: var(--green-dark);
+    border-radius: 10px; padding: 10px 16px; transition: background .15s, color .15s;
+  }
+  .btn:hover { background: var(--green); color: #fff; }
+  .btn.primary { background: var(--green); color: #fff; }
+  .btn.primary:hover { background: var(--green-dark); border-color: var(--green-dark); }
+  .btn.small { padding: 5px 10px; font-size: 13px; border-radius: 8px; }
+  .btn.danger { border-color: var(--red); color: var(--red); }
+  .btn.danger:hover { background: var(--red); color: #fff; }
+
+  .table-wrap {
+    overflow-x: auto; border: 2px solid var(--border); border-top: 8px solid var(--green);
+    border-radius: 0 0 14px 14px; background: var(--green-soft);
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: var(--green-dark); background: var(--green-banner); }
+  tbody tr:hover { background: #fff; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.actions { display: flex; gap: 8px; }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+  .tag.ok { background: var(--green-banner); color: var(--green-dark); }
+  .tag.no { background: var(--red-soft); color: var(--red); }
+  .tag.warn { background: var(--amber-soft); color: var(--amber); }
+
+  .summary { margin-top: 16px; color: var(--muted); font-size: 14px; }
+
+  dialog { border: 0; border-radius: 16px; padding: 28px; width: min(640px, 94vw); margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dialog h3 { font-family: 'Raleway', sans-serif; margin-bottom: 18px; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .fields .full { grid-column: 1 / -1; }
+  label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 14px; }
+  input, select {
+    font: inherit; font-weight: 400; padding: 10px 12px; border: 2px solid var(--border); border-radius: 10px; background: #fff;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--green); }
+  .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+  .pick { background: var(--green-soft); border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .venc-box {
+    background: var(--green-banner); color: var(--green-dark); border-radius: 10px;
+    padding: 12px 14px; font-weight: 700; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .venc-box small { font-weight: 400; color: var(--muted); }
+
+  .hint { color: var(--muted); font-size: 14px; margin-bottom: 14px; line-height: 1.45; }
+  .cat-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cat-msg { min-height: 22px; font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+  .cat-msg.ok { color: var(--green-dark); }
+  .cat-msg.err { color: var(--red); }
+  #catDlg .table-wrap { max-height: 280px; overflow: auto; }
+  #catDlg table { min-width: 0; }
+  #catDlg th, #catDlg td { padding: 8px 12px; }
+
+  @media (max-width: 560px) { .fields { grid-template-columns: 1fr; } }
+
+  /* Responsivo: a tabela se ajusta à tela, sem rolagem lateral.
+   Telas largas: colunas compactas com quebra de linha. Telas estreitas: cada registro vira um cartão. */
+.page { padding: 32px clamp(12px, 3vw, 32px); }
+.page .table-wrap { overflow-x: visible; }
+table { min-width: 0; }
+th, td { white-space: normal; overflow-wrap: anywhere; padding: 10px 8px; font-size: 14px; }
+th { font-size: 12px; }
+td.actions { flex-wrap: wrap; }
+
+@media (max-width: 1180px) {
+  .page .table-wrap table, .page .table-wrap tbody { display: block; }
+  .page .table-wrap thead { display: none; }
+  .page .table-wrap tr {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 6px 16px; padding: 14px; background: #fff; border-bottom: 2px solid var(--border);
+  }
+  .page .table-wrap td { display: block; padding: 2px 0; border: 0; }
+  #rows td::before { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+  #rows td:nth-child(1)::before { content: 'Nome'; }
+  #rows td:nth-child(2)::before { content: 'Cargo'; }
+  #rows td:nth-child(3)::before { content: 'Empresa'; }
+  #rows td:nth-child(4)::before { content: 'Situação'; }
+  #rows td:nth-child(5)::before { content: 'Nome do EPI'; }
+  #rows td:nth-child(6)::before { content: 'Marca'; }
+  #rows td:nth-child(7)::before { content: 'CA'; }
+  #rows td:nth-child(8)::before { content: 'Data de retirada'; }
+  #rows td:nth-child(9)::before { content: 'Assinou?'; }
+  #rows td:nth-child(10)::before { content: 'Vencimento'; }
+  #rows td:nth-child(1) { font-weight: 700; font-size: 16px; }
+  #rows td.actions { display: flex; gap: 8px; align-items: center; }
+  #rows td.actions::before { content: none; }
+}
+
+@media (max-width: 640px) {
+  .tools { width: 100%; }
+  .search { flex: 1 1 100%; min-width: 0; }
+  .tools .btn { flex: 1 1 auto; }
+}
+
+/* Ficha por colaborador (ficha_kits.js): mais compacta para caber na tela */
+#fcTable { min-width: 0 !important; font-size: 12px; }
+#fcTable th, #fcTable td { padding: 6px 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <a class="back" href="index.html">← Voltar aos anos</a>
+  <div class="eyebrow"></div>
+  <div class="kicker">Controle de EPIs</div>
+  <div class="head">
+    <h1 id="title">Planilha</h1>
+    <div class="tools">
+      <input class="search" id="search" type="search" placeholder="Buscar por nome, cargo, empresa, EPI, CA...">
+      <button class="btn" id="catBtn">Planilha de EPIs</button>
+      <button class="btn primary" id="addBtn">+ Novo registro</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th><th>Cargo</th><th>Empresa</th><th>Situação</th>
+          <th>Nome do EPI</th><th>Marca</th><th>CA</th>
+          <th>Data de retirada</th><th>Assinou?</th><th>Vencimento</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>Nenhum registro encontrado.</div>
+  </div>
+  <p class="summary" id="summary"></p>
+</div>
+
+<!-- Cadastro / edição de registro -->
+<dialog id="dlg">
+  <form method="dialog" id="form">
+    <h3 id="dlgTitle">Novo registro</h3>
+    <div class="fields">
+      <label>Nome <input name="nome" required></label>
+      <label>Cargo <input name="cargo" required></label>
+      <label>Empresa <input name="empresa" required></label>
+      <label>Situação
+        <input name="situacao" list="situacoes" placeholder="Ex.: Ativo">
+        <datalist id="situacoes">
+          <option value="Ativo"><option value="Afastado"><option value="Férias"><option value="Desligado">
+        </datalist>
+      </label>
+
+      <div class="full pick">
+        <label>EPI da planilha (preenche EPI, marca, CA e vencimento)
+          <select name="catalogo"></select>
+        </label>
+      </div>
+
+      <label>Nome do EPI <input name="epi" required></label>
+      <label>Marca <input name="marca"></label>
+      <label>CA <input name="ca" inputmode="numeric" placeholder="Nº do certificado"></label>
+      <label>Data de retirada <input name="retirada" type="date" required></label>
+      <label>Assinou?
+        <select name="assinou">
+          <option value="Sim">Sim</option>
+          <option value="Não">Não</option>
+        </select>
+      </label>
+      <div class="full venc-box">
+        <span>Vencimento: <span id="vencPreview">—</span></span>
+        <small>Calculado automaticamente pela planilha de EPIs</small>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn" id="cancelBtn">Cancelar</button>
+      <button type="submit" class="btn primary">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Planilha de EPIs pré-definidos -->
+<dialog id="catDlg">
+  <h3>Planilha de EPIs</h3>
+  <p class="hint">
+    Importe um arquivo <strong>.xlsx</strong> ou <strong>.csv</strong> com as colunas
+    <strong>EPI, Marca, CA e Validade</strong>. Em <em>Validade</em> use o número de dias de uso do EPI
+    (o vencimento será data de retirada + dias) ou uma data fixa (ex.: validade do CA).
+    Importar substitui a lista atual.
+  </p>
+  <div class="cat-actions">
+    <button type="button" class="btn" id="resetBtn">Restaurar lista padrão</button>
+    <button type="button" class="btn primary" id="importBtn">Importar planilha</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" hidden>
+    <button type="button" class="btn" id="templateBtn">Baixar modelo</button>
+    <button type="button" class="btn danger" id="clearBtn">Limpar lista</button>
+  </div>
+  <div class="cat-msg" id="catMsg"></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>EPI</th><th>Marca</th><th>CA</th><th>Validade</th></tr></thead>
+      <tbody id="catRows"></tbody>
+    </table>
+    <div class="empty" id="catEmpty">Nenhum EPI importado ainda.</div>
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn" id="closeCat">Fechar</button>
+  </div>
+</dialog>
+
+<script>
+  /* ---------- Ano vindo da URL: planilha.html?ano=2026 ---------- */
+  const year = new URLSearchParams(location.search).get('ano') || new Date().getFullYear();
+  document.getElementById('title').textContent = `Planilha ${year}`;
+  document.title = `Planilha de EPIs ${year}`;
+
+  /* ---------- Camada de dados ----------
+     Troque as funções abaixo por chamadas à sua API quando tiver o backend.
+     Registro: { id, nome, cargo, empresa, situacao, epi, marca, ca, retirada, assinou, validade, vencimento }
+     Catálogo: { epi, marca, ca, validade }  -> validade = "365" (dias) ou "2027-06-30" (data fixa) */
+  const STORAGE_KEY = `epis-${year}`;
+  const CATALOG_KEY = 'epis-catalogo'; // compartilhado entre todos os anos
+
+  function loadJSON(key) {
+    try { const s = JSON.parse(localStorage.getItem(key)); if (Array.isArray(s)) return s; } catch (e) {}
+    return [];
+  }
+  function saveRecords() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); } catch (e) {} }
+  function saveCatalog() { try { localStorage.setItem(CATALOG_KEY, JSON.stringify(catalog)); } catch (e) {} }
+
+  let records = loadJSON(STORAGE_KEY);
+ let catalog = localStorage.getItem(CATALOG_KEY) === null
+  ? EPIS_PADRAO.map(c => ({ ...c }))
+  : loadJSON(CATALOG_KEY);
+  let editingId = null;
+
+  /* ---------- Utilidades ---------- */
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const todayISO = iso(new Date());
+  const in30ISO = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return iso(d); })();
+  const fmtDate = s => { if (!s) return '—'; const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+  const norm = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+  function el(tag, props = {}, children = []) {
+    const n = Object.assign(document.createElement(tag), props);
+    children.forEach(c => n.append(c));
+    return n;
+  }
+  const tag = (text, kind) => el('span', { className: `tag ${kind}`, textContent: text });
+
+  /* Vencimento = data fixa da planilha, ou retirada + dias */
+  function computeVenc(validade, retiradaISO) {
+    if (!validade) return '';
+    if (validade.includes('-')) return validade;
+    if (!retiradaISO) return '';
+    const [y, m, d] = retiradaISO.split('-').map(Number);
+    return iso(new Date(y, m - 1, d + Number(validade)));
+  }
+  const validadeLabel = v => !v ? '—' : v.includes('-') ? fmtDate(v) : `${v} dias`;
+  const labelOf = c => `${c.epi}${c.marca ? ' — ' + c.marca : ''}${c.ca ? ' (CA ' + c.ca + ')' : ''}`;
+
+  /* ---------- Tabela principal ---------- */
+  const rowsEl = document.getElementById('rows');
+  const emptyEl = document.getElementById('empty');
+  const summaryEl = document.getElementById('summary');
+  const searchEl = document.getElementById('search');
+
+  function vencimentoCell(s) {
+    const td = el('td');
+    if (!s) { td.textContent = '—'; return td; }
+    td.append(fmtDate(s) + ' ');
+    if (s < todayISO) td.append(tag('Vencido', 'no'));
+    else if (s <= in30ISO) td.append(tag('Vence em breve', 'warn'));
+    return td;
+  }
+
+  function render() {
+    const q = searchEl.value.trim().toLowerCase();
+    const list = records.filter(r =>
+      !q || [r.nome, r.cargo, r.empresa, r.situacao, r.epi, r.marca, r.ca].some(v => (v || '').toLowerCase().includes(q))
+    );
+
+    rowsEl.replaceChildren();
+    list.forEach(r => {
+      const edit = el('button', { className: 'btn small', textContent: 'Editar', type: 'button' });
+      edit.onclick = () => openDialog(r.id);
+      const del = el('button', { className: 'btn small danger', textContent: 'Excluir', type: 'button' });
+      del.onclick = () => {
+        if (confirm(`Excluir o registro de ${r.nome}?`)) {
+          records = records.filter(x => x.id !== r.id); saveRecords(); render();
+        }
+      };
+      rowsEl.append(el('tr', {}, [
+        el('td', { textContent: r.nome }),
+        el('td', { textContent: r.cargo }),
+        el('td', { textContent: r.empresa }),
+        el('td', { textContent: r.situacao || '—' }),
+        el('td', { textContent: r.epi }),
+        el('td', { textContent: r.marca || '—' }),
+        el('td', { textContent: r.ca || '—' }),
+        el('td', { textContent: fmtDate(r.retirada) }),
+        el('td', {}, [tag(r.assinou, r.assinou === 'Sim' ? 'ok' : 'no')]),
+        vencimentoCell(r.vencimento),
+        el('td', { className: 'actions' }, [edit, del])
+      ]));
+    });
+
+    emptyEl.hidden = list.length > 0;
+    summaryEl.textContent = `${list.length} de ${records.length} registro(s)`;
+  }
+
+  /* ---------- Formulário de registro ---------- */
+  const dlg = document.getElementById('dlg');
+  const form = document.getElementById('form');
+  const catSel = form.elements.catalogo;
+  const vencPreview = document.getElementById('vencPreview');
+  let currentValidade = '';   // validade vinda da planilha de EPIs
+  let legacyVenc = '';        // vencimento antigo (registros criados antes da planilha de EPIs)
+
+  const currentVenc = () => currentValidade ? computeVenc(currentValidade, form.elements.retirada.value) : legacyVenc;
+  const updateVenc = () => { vencPreview.textContent = fmtDate(currentVenc()); };
+
+  function fillCatalogSelect(selectedIdx = '') {
+    catSel.replaceChildren(el('option', {
+      value: '',
+      textContent: catalog.length ? 'Preencher manualmente' : 'Nenhum EPI na planilha — clique em "Planilha de EPIs"'
+    }));
+    catalog.forEach((c, i) => catSel.append(el('option', { value: String(i), textContent: labelOf(c) })));
+    catSel.value = String(selectedIdx);
+  }
+
+  catSel.addEventListener('change', () => {
+    if (catSel.value === '') { currentValidade = ''; legacyVenc = ''; }
+    else {
+      const c = catalog[Number(catSel.value)];
+      form.elements.epi.value = c.epi;
+      form.elements.marca.value = c.marca;
+      form.elements.ca.value = c.ca;
+      currentValidade = c.validade;
+    }
+    updateVenc();
+  });
+  form.elements.retirada.addEventListener('change', updateVenc);
+
+  function openDialog(id = null) {
+    editingId = id;
+    form.reset();
+    document.getElementById('dlgTitle').textContent = id ? 'Editar registro' : 'Novo registro';
+    currentValidade = ''; legacyVenc = '';
+    let idx = '';
+
+    if (id) {
+      const r = records.find(x => x.id === id);
+      Object.entries({
+        nome: r.nome, cargo: r.cargo, empresa: r.empresa, situacao: r.situacao, epi: r.epi, marca: r.marca,
+        ca: r.ca, retirada: r.retirada, assinou: r.assinou
+      }).forEach(([k, v]) => { form.elements[k].value = v || ''; });
+      const found = catalog.findIndex(c => c.epi === r.epi && c.marca === (r.marca || '') && c.ca === (r.ca || ''));
+      if (found >= 0) idx = found;
+      currentValidade = r.validade || (found >= 0 ? catalog[found].validade : '');
+      legacyVenc = r.vencimento || '';
+    } else {
+      form.elements.retirada.value = todayISO;
+    }
+    fillCatalogSelect(idx);
+    updateVenc();
+    dlg.showModal();
+  }
+
+  form.addEventListener('submit', () => {
+    const f = form.elements;
+    const data = {
+      nome: f.nome.value.trim(), cargo: f.cargo.value.trim(), empresa: f.empresa.value.trim(),
+      situacao: f.situacao.value.trim(), epi: f.epi.value.trim(), marca: f.marca.value.trim(),
+      ca: f.ca.value.trim(), retirada: f.retirada.value, assinou: f.assinou.value,
+      validade: currentValidade, vencimento: currentVenc()
+    };
+    if (editingId) {
+      records = records.map(r => (r.id === editingId ? { ...r, ...data } : r));
+    } else {
+      records.push({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), ...data });
+    }
+    saveRecords(); render();
+  });
+
+  document.getElementById('addBtn').onclick = () => openDialog();
+  document.getElementById('cancelBtn').onclick = () => dlg.close();
+  searchEl.addEventListener('input', render);
+
+  /* ---------- Planilha de EPIs (catálogo) ---------- */
+  const catDlg = document.getElementById('catDlg');
+  const catRows = document.getElementById('catRows');
+  const catEmpty = document.getElementById('catEmpty');
+  const catMsg = document.getElementById('catMsg');
+  const catBtn = document.getElementById('catBtn');
+  const fileInput = document.getElementById('fileInput');
+
+  function setMsg(text, kind = '') { catMsg.textContent = text; catMsg.className = `cat-msg ${kind}`; }
+
+  function renderCatalog() {
+    catRows.replaceChildren();
+    catalog.forEach(c => catRows.append(el('tr', {}, [
+      el('td', { textContent: c.epi }),
+      el('td', { textContent: c.marca || '—' }),
+      el('td', { textContent: c.ca || '—' }),
+      el('td', { textContent: validadeLabel(c.validade) })
+    ])));
+    catEmpty.hidden = catalog.length > 0;
+    catBtn.textContent = catalog.length ? `Planilha de EPIs (${catalog.length})` : 'Planilha de EPIs';
+  }
+
+  /* Datas: aceita Date (xlsx), yyyy-mm-dd e dd/mm/aaaa */
+  function toISODate(v) {
+    if (v instanceof Date && !isNaN(v)) return iso(new Date(v.getTime() + 12 * 3600 * 1000));
+    const s = String(v ?? '').trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${pad(+m[2])}-${pad(+m[1])}`;
+    return '';
+  }
+  function parseValidade(v) {
+    const d = toISODate(v);
+    if (d) return d;
+    const n = String(v ?? '').trim().match(/^\d+/);   // "365" ou "365 dias"
+    return n ? n[0] : '';
+  }
+
+  function findCols(header) {
+    const h = header.map(norm);
+    const idx = test => h.findIndex(test);
+    return {
+      epi: idx(x => ['epi', 'nomedoepi', 'nomeepi', 'equipamento', 'descricao', 'nome'].includes(x)),
+      marca: idx(x => ['marca', 'fabricante'].includes(x)),
+      ca: idx(x => x === 'ca' || x === 'nca' || x === 'numeroca' || x.startsWith('certificado')),
+      validade: idx(x => /^(validade|vencimento|vida|dias|prazo)/.test(x))
+    };
+  }
+
+  function rowsToCatalog(rows) {
+    let hi = -1, cols;
+    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+      const c = findCols(rows[i]);
+      if (c.epi >= 0) { hi = i; cols = c; break; }
+    }
+    if (hi < 0) throw new Error('Não encontrei a coluna "EPI" no cabeçalho. Use o modelo (botão "Baixar modelo").');
+    const get = (row, i) => (i >= 0 ? row[i] : '');
+    return rows.slice(hi + 1)
+      .map(row => ({
+        epi: String(get(row, cols.epi) ?? '').trim(),
+        marca: String(get(row, cols.marca) ?? '').trim(),
+        ca: String(get(row, cols.ca) ?? '').trim(),
+        validade: parseValidade(get(row, cols.validade))
+      }))
+      .filter(c => c.epi);
+  }
+
+  function parseCSV(text) {
+    text = text.replace(/^\uFEFF/, '');
+    const first = text.split(/\r?\n/)[0] || '';
+    const delim = (first.match(/;/g) || []).length > (first.match(/,/g) || []).length ? ';' : ',';
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+        else cell += c;
+      } else if (c === '"') q = true;
+      else if (c === delim) { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += c;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows;
+  }
+
+  async function importFile(file) {
+    const name = file.name.toLowerCase();
+    const buf = await file.arrayBuffer();
+    let rows;
+    if (name.endsWith('.csv') || name.endsWith('.txt')) {
+      let text;
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (e) { text = new TextDecoder('windows-1252').decode(buf); } // CSV do Excel em pt-BR
+      rows = parseCSV(text);
+    } else {
+      if (typeof XLSX === 'undefined') throw new Error('A biblioteca de planilhas não carregou (sem internet?). Salve o arquivo como .csv e tente de novo.');
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+    }
+    return rowsToCatalog(rows);
+  }
+
+  document.getElementById('importBtn').onclick = () => fileInput.click();
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    try {
+      const list = await importFile(file);
+      if (!list.length) throw new Error('Nenhum EPI encontrado na planilha.');
+      catalog = list; saveCatalog(); renderCatalog();
+      setMsg(`${list.length} EPI(s) importado(s).`, 'ok');
+    } catch (e) {
+      setMsg(e.message || 'Não foi possível ler o arquivo.', 'err');
+    }
+  });
+
+  document.getElementById('templateBtn').onclick = () => {
+    const aoa = [
+      ['EPI', 'Marca', 'CA', 'Validade (dias ou data)'],
+      ['Capacete de segurança', '3M', '12345', 365],
+      ['Luva de raspa', 'Volk', '54321', '2027-06-30']
+    ];
+    if (typeof XLSX !== 'undefined') {
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'EPIs');
+      XLSX.writeFile(wb, 'modelo-epis.xlsx');
+    } else {
+      const csv = '\uFEFF' + aoa.map(r => r.join(';')).join('\r\n');
+      const a = el('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: 'modelo-epis.csv' });
+      a.click(); URL.revokeObjectURL(a.href);
+    }
+  };
+
+  document.getElementById('clearBtn').onclick = () => {
+    if (catalog.length && confirm('Limpar toda a lista de EPIs? Os registros já criados não são afetados.')) {
+      catalog = []; saveCatalog(); renderCatalog(); setMsg('Lista limpa.', 'ok');
+    }
+  };
+  document.getElementById('resetBtn').onclick = () => {
+  if (confirm('Substituir a lista atual pela lista padrão de EPIs?')) {
+    catalog = EPIS_PADRAO.map(c => ({ ...c }));
+    saveCatalog(); renderCatalog();
+    setMsg('Lista padrão restaurada.', 'ok');
+  }
+};
+  catBtn.onclick = () => { setMsg(''); catDlg.showModal(); };
+  document.getElementById('closeCat').onclick = () => catDlg.close();
+
+  renderCatalog();
+  render();
+</script>
+
+<script src="epis_padrao.js"></script> 
+</body>
+</html>

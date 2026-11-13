@@ -1,12 +1,20 @@
 
   :root {
-    --green: #1fa64f;
-    --green-dark: #0f6b33;
-    --green-soft: #f3faf5;
-    --green-banner: #e4f3e8;
+    --green: #1f6fd1;
+    --green-dark: #0f428a;
+    --green-soft: #f3f7fd;
+    --green-banner: #e4eefa;
     --text: #1a1f1c;
-    --muted: #5b6560;
+    --muted: #5b626b;
     --border: #d9e2dc;
+
+    /* --blue: #1f6fd1;
+    --blue-dark: #0f428a;
+    --blue-soft: #f3f7fd;
+    --blue-banner: #e4eefa;
+    --text: #1a1d21;
+    --muted: #5b626b;
+    --border: #d9e1ea; */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
